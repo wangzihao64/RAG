@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"rag/config"
+	"rag/internal/model"
 )
 
 var DB *gorm.DB
@@ -52,4 +53,13 @@ func InitPostgreSQL() {
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	DB = db
+
+	if err := db.AutoMigrate(
+		&model.User{},
+		&model.Collection{},
+		&model.Document{},
+		&model.Permission{},
+	); err != nil {
+		panic(fmt.Sprintf("数据库迁移失败: %v", err))
+	}
 }
