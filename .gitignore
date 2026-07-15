@@ -1,0 +1,8 @@
+.idea
+.DS_Store
+
+# Go 编译输出
+main
+
+# Go 依赖（注意：通常建议提交 go.sum 以确保依赖一致性）
+go.sum
