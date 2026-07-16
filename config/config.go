@@ -14,6 +14,9 @@ var (
 	DbUser     string
 	DbPassword string
 	DbName     string
+
+	JwtSecret      string
+	JwtExpireHours int
 )
 
 func LoadServer(file *ini.File) {
@@ -28,6 +31,10 @@ func LoadPostgreSQL(file *ini.File) {
 	DbPassword = file.Section("postgresql").Key("DbPassword").String()
 	DbName = file.Section("postgresql").Key("DbName").String()
 }
+func LoadJWT(file *ini.File) {
+	JwtSecret = file.Section("jwt").Key("Secret").String()
+	JwtExpireHours = file.Section("jwt").Key("ExpireHours").MustInt(72)
+}
 func Init() {
 	file, err := ini.Load("./config/config.ini")
 	if err != nil {
@@ -35,4 +42,5 @@ func Init() {
 	}
 	LoadServer(file)
 	LoadPostgreSQL(file)
+	LoadJWT(file)
 }

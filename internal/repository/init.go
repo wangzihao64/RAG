@@ -1,6 +1,7 @@
-package dao
+package repository
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -54,4 +55,9 @@ func InitPostgreSQL() {
 	DB = db
 
 	Migration()
+}
+
+func NewDBClient(ctx context.Context) *gorm.DB {
+	db := DB
+	return db.WithContext(ctx)
 }

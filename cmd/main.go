@@ -2,15 +2,15 @@ package main
 
 import (
 	"log"
+	"rag/internal/repository"
 
 	"rag/config"
-	"rag/internal/dao"
 	"rag/internal/router"
 )
 
 func Init() {
 	config.Init()
-	dao.InitPostgreSQL()
+	repository.InitPostgreSQL()
 }
 
 func main() {

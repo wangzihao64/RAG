@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"rag/internal/handler"
 	"rag/internal/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -20,12 +21,27 @@ func NewRouter() *gin.Engine {
 
 	r := gin.Default()
 	r.Use(middleware.Cors())
+
 	v1 := r.Group("/api/v1")
 	{
 		// 健康检查：确认服务存活、可连库后续再扩展
 		v1.GET("/ping", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"message": "pong"})
 		})
+
+		// 认证相关：注册、登录，无需鉴权
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/register", handler.UserRegister)
+			auth.POST("/login", handler.UserLogin)
+		}
+
+		// 需要登录的接口
+		user := v1.Group("/user")
+		user.Use(middleware.JWTAuth())
+		{
+			user.GET("/profile", handler.Profile)
+		}
 	}
 	return r
 }
