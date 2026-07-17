@@ -33,7 +33,7 @@ func toUserView(u *model.User) userView {
 // Register 处理 POST /auth/register
 func UserRegister(c *gin.Context) {
 	var req service.RegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		response.Fail(c, http.StatusBadRequest, 400, "参数错误: "+err.Error())
 		return
 	}
@@ -53,7 +53,7 @@ func UserRegister(c *gin.Context) {
 // Login 处理 POST /auth/login
 func UserLogin(c *gin.Context) {
 	var req service.LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		response.Fail(c, http.StatusBadRequest, 400, "参数错误: "+err.Error())
 		return
 	}
