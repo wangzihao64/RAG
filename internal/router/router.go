@@ -42,6 +42,17 @@ func NewRouter() *gin.Engine {
 		{
 			user.GET("/profile", handler.Profile)
 		}
+
+		// 知识库管理，全部需要登录
+		collections := v1.Group("/collections")
+		collections.Use(middleware.JWTAuth())
+		{
+			collections.POST("", handler.CollectionCreate)
+			collections.GET("", handler.CollectionList)
+			collections.GET("/:id", handler.CollectionDetail)
+			collections.PUT("/:id", handler.CollectionUpdate)
+			collections.DELETE("/:id", handler.CollectionDelete)
+		}
 	}
 	return r
 }
