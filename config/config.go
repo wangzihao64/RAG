@@ -1,6 +1,8 @@
 package config
 
 import (
+	"strings"
+
 	"gopkg.in/ini.v1"
 )
 
@@ -17,6 +19,10 @@ var (
 
 	JwtSecret      string
 	JwtExpireHours int
+
+	UploadDir     string
+	MaxFileSizeMB int64
+	AllowedTypes  []string
 )
 
 func LoadServer(file *ini.File) {
@@ -35,6 +41,19 @@ func LoadJWT(file *ini.File) {
 	JwtSecret = file.Section("jwt").Key("Secret").String()
 	JwtExpireHours = file.Section("jwt").Key("ExpireHours").MustInt(72)
 }
+func LoadStorage(file *ini.File) {
+	UploadDir = file.Section("storage").Key("UploadDir").MustString("./uploads")
+	MaxFileSizeMB = file.Section("storage").Key("MaxFileSizeMB").MustInt64(50)
+	// 允许的文件类型，逗号分隔，统一转小写
+	raw := file.Section("storage").Key("AllowedTypes").MustString("pdf,md,txt,docx")
+	AllowedTypes = nil
+	for _, t := range strings.Split(raw, ",") {
+		t = strings.ToLower(strings.TrimSpace(t))
+		if t != "" {
+			AllowedTypes = append(AllowedTypes, t)
+		}
+	}
+}
 func Init() {
 	file, err := ini.Load("./config/config.ini")
 	if err != nil {
@@ -43,4 +62,5 @@ func Init() {
 	LoadServer(file)
 	LoadPostgreSQL(file)
 	LoadJWT(file)
+	LoadStorage(file)
 }

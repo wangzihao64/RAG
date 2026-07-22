@@ -52,6 +52,18 @@ func NewRouter() *gin.Engine {
 			collections.GET("/:id", handler.CollectionDetail)
 			collections.PUT("/:id", handler.CollectionUpdate)
 			collections.DELETE("/:id", handler.CollectionDelete)
+
+			// 知识库下的文档：上传、列表
+			collections.POST("/:id/documents", handler.DocumentUpload)
+			collections.GET("/:id/documents", handler.DocumentList)
+		}
+
+		// 文档详情与删除，需要登录
+		documents := v1.Group("/documents")
+		documents.Use(middleware.JWTAuth())
+		{
+			documents.GET("/:id", handler.DocumentDetail)
+			documents.DELETE("/:id", handler.DocumentDelete)
 		}
 	}
 	return r
