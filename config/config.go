@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"strings"
 
 	"gopkg.in/ini.v1"
@@ -23,6 +24,17 @@ var (
 	UploadDir     string
 	MaxFileSizeMB int64
 	AllowedTypes  []string
+
+	MilvusAddress    string
+	MilvusCollection string
+
+	EmbeddingProvider string
+	EmbeddingBaseURL  string
+	EmbeddingModel    string
+	EmbeddingDim      int
+	EmbeddingAPIKey   string // 从环境变量 DASHSCOPE_API_KEY 读取
+	ChunkSize         int
+	ChunkOverlap      int
 )
 
 func LoadServer(file *ini.File) {
@@ -54,6 +66,20 @@ func LoadStorage(file *ini.File) {
 		}
 	}
 }
+func LoadMilvus(file *ini.File) {
+	MilvusAddress = file.Section("milvus").Key("Address").MustString("127.0.0.1:19530")
+	MilvusCollection = file.Section("milvus").Key("Collection").MustString("rag_chunks")
+}
+func LoadEmbedding(file *ini.File) {
+	EmbeddingProvider = file.Section("embedding").Key("Provider").MustString("dashscope")
+	EmbeddingBaseURL = file.Section("embedding").Key("BaseURL").MustString("https://dashscope.aliyuncs.com/compatible-mode/v1")
+	EmbeddingModel = file.Section("embedding").Key("Model").MustString("text-embedding-v3")
+	EmbeddingDim = file.Section("embedding").Key("Dim").MustInt(1024)
+	ChunkSize = file.Section("embedding").Key("ChunkSize").MustInt(500)
+	ChunkOverlap = file.Section("embedding").Key("ChunkOverlap").MustInt(80)
+	// 敏感信息不入配置文件，仅从环境变量读取
+	EmbeddingAPIKey = os.Getenv("DASHSCOPE_API_KEY")
+}
 func Init() {
 	file, err := ini.Load("./config/config.ini")
 	if err != nil {
@@ -63,4 +89,6 @@ func Init() {
 	LoadPostgreSQL(file)
 	LoadJWT(file)
 	LoadStorage(file)
+	LoadMilvus(file)
+	LoadEmbedding(file)
 }

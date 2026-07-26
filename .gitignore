@@ -9,3 +9,6 @@ go.sum
 
 # 上传的文件存储目录
 uploads/
+
+# Milvus/etcd/minio 数据卷
+deployments/volumes/
