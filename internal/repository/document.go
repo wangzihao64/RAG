@@ -63,3 +63,29 @@ func (d *DocumentDao) ListByCollection(collectionID uint) ([]model.Document, err
 func (d *DocumentDao) DeleteDocument(doc *model.Document) error {
 	return d.DB.Delete(doc).Error
 }
+
+// ListPendingDocuments() 列出status为pending状态的全部文档
+func (d *DocumentDao) ListPendingDocuments() ([]model.Document, error) {
+	var docs []model.Document
+	err := d.Where("status = ?", model.DocStatusPending).Find(&docs).Error
+	if err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
+// updateStatus 更新文档状态与错误信息的函数。
+func (d *DocumentDao) UpdateStatus(docID uint, status string, errMsg string) error {
+	updates := map[string]interface{}{
+		"status": status,
+	}
+	if errMsg != "" {
+		updates["error_msg"] = errMsg
+	} else {
+		updates["error_msg"] = "" // 清空之前的错误
+	}
+	if err := d.DB.Model(&model.Document{}).Where("id = ?", docID).Updates(updates).Error; err != nil {
+		return err
+	}
+	return nil
+}

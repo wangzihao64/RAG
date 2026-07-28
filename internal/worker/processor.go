@@ -70,14 +70,13 @@ func (w *ProcessorWorker) run() {
 // pollAndProcess 查询所有待处理文档并逐个处理。
 func (w *ProcessorWorker) pollAndProcess() {
 	ctx := context.Background()
-
+	dao := repository.NewDocumentDao(ctx)
 	// 查询所有 pending 状态的文档
-	var docs []*model.Document
-	if err := repository.DB.Where("status = ?", model.DocStatusPending).Find(&docs).Error; err != nil {
+	var docs []model.Document
+	docs, err := dao.ListPendingDocuments()
+	if err != nil {
 		log.Printf("查询待处理文档失败: %v", err)
-		return
 	}
-
 	if len(docs) == 0 {
 		return
 	}

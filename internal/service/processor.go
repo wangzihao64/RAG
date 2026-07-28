@@ -54,19 +54,19 @@ func (p *Pipeline) ProcessDocument(ctx context.Context, docID uint) error {
 	}
 
 	// 标记为处理中
-	if err := updateStatus(ctx, docID, model.DocStatusProcessing, ""); err != nil {
+	if err := dao.UpdateStatus(docID, model.DocStatusProcessing, ""); err != nil {
 		return err
 	}
 
 	// 执行处理流水线
 	if err := p.process(ctx, doc); err != nil {
 		log.Printf("文档 %d 处理失败: %v", docID, err)
-		_ = updateStatus(ctx, docID, model.DocStatusFailed, err.Error())
+		_ = dao.UpdateStatus(docID, model.DocStatusFailed, err.Error())
 		return err
 	}
 
 	// 标记为就绪
-	return updateStatus(ctx, docID, model.DocStatusReady, "")
+	return dao.UpdateStatus(docID, model.DocStatusReady, "")
 }
 
 // process 执行提取 → 切分 → 向量化 → 写入的核心流程。
@@ -122,20 +122,3 @@ func (p *Pipeline) process(ctx context.Context, doc *model.Document) error {
 
 	return nil
 }
-
-// updateStatus 更新文档状态与错误信息的快捷函数。
-func updateStatus(ctx context.Context, docID uint, status string, errMsg string) error {
-	updates := map[string]interface{}{
-		"status": status,
-	}
-	if errMsg != "" {
-		updates["error_msg"] = errMsg
-	} else {
-		updates["error_msg"] = "" // 清空之前的错误
-	}
-	if err := repository.DB.Model(&model.Document{}).Where("id = ?", docID).Updates(updates).Error; err != nil {
-		return fmt.Errorf("更新文档状态失败: %w", err)
-	}
-	return nil
-}
-
