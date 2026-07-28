@@ -12,3 +12,6 @@ uploads/
 
 # Milvus/etcd/minio 数据卷
 deployments/volumes/
+
+# postgresql 数据卷
+deployments/deployments

@@ -17,7 +17,7 @@ This is a Go-based RAG (Retrieval-Augmented Generation) system that provides doc
 
 ```bash
 # 1. Start Milvus (and its etcd + minio deps) and WAIT until it's healthy
-docker-compose -f deployments/milvus-compose.yml up -d
+docker-compose -f deployments/docker-compose.yml up -d
 docker ps | grep milvus-standalone            # must show "(healthy)"
 # milvus-etcd and milvus-minio alone are NOT enough — milvus-standalone must be running
 

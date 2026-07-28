@@ -1,8 +1,25 @@
 # Milvus standalone 部署（含依赖的 etcd 与 minio）
-# 启动： docker compose -f deployments/milvus-compose.yml up -d
-# 关闭： docker compose -f deployments/milvus-compose.yml down
+# 启动： docker compose -f deployments/docker-compose.yml up -d
+# 关闭： docker compose -f deployments/docker-compose.yml down
 # 数据默认落在本目录下的 volumes/ 子目录，已被 .gitignore 忽略
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rag-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: rag
+    volumes:
+      - ./deployments/volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   etcd:
     container_name: milvus-etcd
     image: quay.io/coreos/etcd:v3.5.16
