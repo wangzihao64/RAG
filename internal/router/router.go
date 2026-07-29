@@ -56,6 +56,10 @@ func NewRouter() *gin.Engine {
 			// 知识库下的文档：上传、列表
 			collections.POST("/:id/documents", handler.DocumentUpload)
 			collections.GET("/:id/documents", handler.DocumentList)
+
+			// 知识库在线查询：纯检索 + RAG 流式问答
+			collections.POST("/:id/query", handler.Query)
+			collections.POST("/:id/chat", handler.Chat)
 		}
 
 		// 文档详情与删除，需要登录

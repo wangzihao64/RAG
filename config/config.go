@@ -35,6 +35,12 @@ var (
 	EmbeddingAPIKey   string // 从环境变量 DASHSCOPE_API_KEY 读取
 	ChunkSize         int
 	ChunkOverlap      int
+
+	LLMProvider string
+	LLMBaseURL  string
+	LLMModel    string
+	LLMAPIKey   string // 复用环境变量 DASHSCOPE_API_KEY
+	QueryTopK   int
 )
 
 func LoadServer(file *ini.File) {
@@ -80,6 +86,14 @@ func LoadEmbedding(file *ini.File) {
 	// 敏感信息不入配置文件，仅从环境变量读取
 	EmbeddingAPIKey = os.Getenv("DASHSCOPE_API_KEY")
 }
+func LoadLLM(file *ini.File) {
+	LLMProvider = file.Section("llm").Key("Provider").MustString("dashscope")
+	LLMBaseURL = file.Section("llm").Key("BaseURL").MustString("https://dashscope.aliyuncs.com/compatible-mode/v1")
+	LLMModel = file.Section("llm").Key("Model").MustString("qwen-plus")
+	QueryTopK = file.Section("llm").Key("QueryTopK").MustInt(5)
+	// 与 embedding 共用同一个 DashScope key
+	LLMAPIKey = os.Getenv("DASHSCOPE_API_KEY")
+}
 func Init() {
 	file, err := ini.Load("./config/config.ini")
 	if err != nil {
@@ -91,4 +105,5 @@ func Init() {
 	LoadStorage(file)
 	LoadMilvus(file)
 	LoadEmbedding(file)
+	LoadLLM(file)
 }
