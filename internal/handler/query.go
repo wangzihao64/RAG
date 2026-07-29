@@ -11,8 +11,8 @@ import (
 
 // chatRequest 是问答/检索接口的请求体
 type chatRequest struct {
-	Query string `json:"query" binding:"required,min=1"`
-	TopK  int    `json:"top_k" binding:"omitempty,min=1,max=50"`
+	Query string `json:"query" form:"query" binding:"required,min=1"`
+	TopK  int    `json:"top_k" form:"top_k" binding:"omitempty,min=1,max=50"`
 }
 
 // Query 处理 POST /collections/:id/query —— 纯向量检索，返回命中片段（JSON）。
@@ -23,7 +23,7 @@ func Query(c *gin.Context) {
 		return
 	}
 	var req chatRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		response.Fail(c, http.StatusBadRequest, 400, "参数错误："+err.Error())
 		return
 	}
@@ -46,7 +46,7 @@ func Chat(c *gin.Context) {
 		return
 	}
 	var req chatRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		response.Fail(c, http.StatusBadRequest, 400, "参数错误："+err.Error())
 		return
 	}
