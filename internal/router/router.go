@@ -60,6 +60,8 @@ func NewRouter() *gin.Engine {
 			// 知识库在线查询：纯检索 + RAG 流式问答
 			collections.POST("/:id/query", handler.Query)
 			collections.POST("/:id/chat", handler.Chat)
+			// 非流式输出
+			collections.POST("/:id/chat_eval", handler.ChatEval)
 		}
 
 		// 文档详情与删除，需要登录

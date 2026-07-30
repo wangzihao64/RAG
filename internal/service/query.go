@@ -123,6 +123,14 @@ func StreamAnswer(ctx context.Context, messages []llm.Message, onDelta func(stri
 	return queryLLM.ChatStream(ctx, messages, onDelta)
 }
 
+// 非流式回答
+func Answer(ctx context.Context, messages []llm.Message) (string, error) {
+	if queryLLM == nil {
+		return "", ErrQueryUnavailable
+	}
+	return queryLLM.Chat(ctx, messages)
+}
+
 // BuildRAGMessages 依据检索到的片段构造对话消息：system 约束“仅依据资料回答”，user 为原始问题。
 func BuildRAGMessages(query string, chunks []RetrievedChunk) []llm.Message {
 	var sb strings.Builder

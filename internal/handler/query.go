@@ -37,6 +37,39 @@ func Query(c *gin.Context) {
 	response.Success(c, chunks)
 }
 
+// Chat 处理 POST /collections/:id/chateval —— RAG 非流式问答。
+func ChatEval(c *gin.Context) {
+	collectionID, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+	var req chatRequest
+	if err := c.ShouldBind(&req); err != nil {
+		response.Fail(c, http.StatusInternalServerError, 500, "AI 回答生成失败："+err.Error())
+		return
+	}
+
+	userID := c.GetUint("user_id")
+
+	// 先检索：此时尚未写任何响应体，鉴权/参数类错误可走标准 JSON 响应。
+	// 拆成“先检索、再流式生成”是为了让 sources 事件先于 message 下发。
+	chunks, err := service.Retrieve(c.Request.Context(), collectionID, userID, req.Query, req.TopK)
+	if err != nil {
+		documentErrorResponse(c, err)
+		return
+	}
+	messages := service.BuildRAGMessages(req.Query, chunks)
+	resp, err := service.Answer(c.Request.Context(), messages)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, 400, "参数错误："+err.Error())
+	}
+	contexts := make([]string, len(chunks))
+	for i, chunk := range chunks {
+		contexts[i] = chunk.Content
+	}
+	response.Success(c, resp, contexts)
+}
+
 // Chat 处理 POST /collections/:id/chat —— RAG 流式问答，走 SSE。
 // 事件序列：先 sources（引用来源），再若干 message（增量文本），最后 done；
 // 流开始后若出错则发 error 事件。

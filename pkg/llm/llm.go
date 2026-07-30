@@ -5,6 +5,7 @@ package llm
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
@@ -30,6 +31,7 @@ type Client interface {
 	// ChatStream 发起一次流式对话，onDelta 在每个增量片段到达时被调用。
 	// 若 onDelta 返回错误（如客户端断开），流应尽快中止并返回该错误。
 	ChatStream(ctx context.Context, messages []Message, onDelta func(string) error) error
+	Chat(ctx context.Context, messages []Message) (string, error)
 }
 
 // New 按配置构造 chat 客户端。
@@ -50,6 +52,22 @@ func New() Client {
 type openaiClient struct {
 	cli   *openai.Client
 	model string
+}
+
+func (c *openaiClient) Chat(ctx context.Context, messages []Message) (string, error) {
+	params := openai.ChatCompletionNewParams{
+		Model:    c.model,
+		Messages: toParam(messages),
+	}
+	resp, err := c.cli.Chat.Completions.New(ctx, params)
+	if err != nil {
+		return "", err
+	}
+	//提取回答内容
+	if len(resp.Choices) == 0 {
+		return "", fmt.Errorf("no choices in response")
+	}
+	return resp.Choices[0].Message.Content, nil
 }
 
 // toParam 把内部 Message 转成 SDK 的消息联合类型。
@@ -96,6 +114,11 @@ func (c *openaiClient) ChatStream(ctx context.Context, messages []Message, onDel
 // mockClient 不调用真实模型，仅把最后一条 user 消息回显并分段输出，
 // 用来验证 SSE 链路是否通畅。
 type mockClient struct{}
+
+func (c *mockClient) Chat(ctx context.Context, messages []Message) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
 
 func (c *mockClient) ChatStream(ctx context.Context, messages []Message, onDelta func(string) error) error {
 	var question string

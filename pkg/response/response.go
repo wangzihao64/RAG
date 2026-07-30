@@ -8,17 +8,19 @@ import (
 
 // Response 统一的 JSON 响应结构
 type Response struct {
-	Code int    `json:"code"` // 业务状态码，0 表示成功
-	Msg  string `json:"msg"`
-	Data any    `json:"data,omitempty"`
+	Code     int    `json:"code"` // 业务状态码，0 表示成功
+	Msg      string `json:"msg"`
+	Data     any    `json:"data,omitempty"`
+	Contexts any    `json:"contexts,omitempty"`
 }
 
 // Success 返回成功响应
-func Success(c *gin.Context, data any) {
+func Success(c *gin.Context, data any, contexts ...any) {
 	c.JSON(http.StatusOK, Response{
-		Code: 0,
-		Msg:  "success",
-		Data: data,
+		Code:     0,
+		Msg:      "success",
+		Data:     data,
+		Contexts: contexts,
 	})
 }
 
