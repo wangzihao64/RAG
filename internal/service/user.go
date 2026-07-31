@@ -17,12 +17,14 @@ var (
 	ErrEmailTaken         = errors.New("邮箱已被注册")
 	ErrInvalidCredentials = errors.New("用户名或密码错误")
 	ErrUserDisabled       = errors.New("账号已被禁用")
+	ErrPassword           = errors.New("两次输入的密码不一致")
 )
 
 type RegisterRequest struct {
-	Username string `json:"username" form:"username" binding:"required,min=3,max=64"`
-	Email    string `json:"email" form:"email" binding:"required,email"`
-	Password string `json:"password" form:"password" binding:"required,min=6,max=64"`
+	Username        string `json:"username" form:"username" binding:"required,min=3,max=64"`
+	Email           string `json:"email" form:"email" binding:"required,email"`
+	Password        string `json:"password" form:"password" binding:"required,min=6,max=64"`
+	ConfirmPassword string `json:"confirm_password" form:"confirm_password" binding:"required,min=6,max=64"`
 }
 
 type LoginRequest struct {
@@ -32,6 +34,9 @@ type LoginRequest struct {
 
 // Register 注册新用户：查重 -> bcrypt 加密 -> 落库
 func (service *RegisterRequest) Register(ctx context.Context) (*model.User, error) {
+	if service.Password != service.ConfirmPassword {
+		return nil, ErrPassword
+	}
 	userDao := repository.NewUserDao(ctx)
 	existing, err := userDao.FindByUsername(service.Username)
 	if err != nil {
