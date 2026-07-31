@@ -2,7 +2,10 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
+	"rag/pkg/util/mime"
 
 	"github.com/gin-gonic/gin"
 
@@ -132,4 +135,26 @@ func DocumentDelete(c *gin.Context) {
 		return
 	}
 	response.Success(c, nil)
+}
+
+// DocumentContent 处理GET /:id/content
+func DocumentContent(c *gin.Context) {
+	id, ok := parseIDParam(c)
+	if !ok {
+		return
+	}
+
+	userID := c.GetUint("user_id")
+
+	doc, err := service.GetContent(c.Request.Context(), id, userID)
+	if err != nil {
+		documentErrorResponse(c, err)
+		return
+	}
+	contentType := mime.FileContentType(doc.FileType)
+	//inline 表示浏览器内预览，fallback 文件名为原始文档名
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, url.PathEscape(doc.Name)))
+	// 如果文件存在本地磁盘，直接返回
+	c.File(doc.FilePath)
 }

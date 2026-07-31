@@ -149,6 +149,15 @@ func DeleteDocument(ctx context.Context, id, userID uint) error {
 	return nil
 }
 
+// GetContent 获取文档的内容
+func GetContent(ctx context.Context, id, userID uint) (*model.Document, error) {
+	doc, err := repository.NewDocumentDao(ctx).FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+	return doc, nil
+}
+
 func isAllowedType(fileType string) bool {
 	for _, t := range config.AllowedTypes {
 		if t == fileType {

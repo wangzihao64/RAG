@@ -70,6 +70,8 @@ func NewRouter() *gin.Engine {
 		{
 			documents.GET("/:id", handler.DocumentDetail)
 			documents.DELETE("/:id", handler.DocumentDelete)
+			//获取文档的内容
+			documents.GET("/:id/content", handler.DocumentContent)
 		}
 	}
 	return r
