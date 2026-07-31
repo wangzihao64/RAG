@@ -141,6 +141,9 @@ func DeleteDocument(ctx context.Context, id, userID uint) error {
 	if _, err := checkCollectionWritable(ctx, doc.CollectionID, userID); err != nil {
 		return err
 	}
+	if err := deleteDocumentChunks(ctx, doc.ID); err != nil {
+		return err
+	}
 	if err := docDao.DeleteDocument(doc); err != nil {
 		return err
 	}

@@ -120,5 +120,8 @@ func DeleteCollection(ctx context.Context, id, userID uint) error {
 	if c.OwnerID != userID {
 		return ErrCollectionForbidden
 	}
+	if err := deleteCollectionChunks(ctx, c.ID); err != nil {
+		return err
+	}
 	return dao.DeleteCollection(c)
 }

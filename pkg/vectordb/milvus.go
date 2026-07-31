@@ -161,6 +161,21 @@ func (s *Store) DeleteByDocument(ctx context.Context, documentID int64) error {
 	if err := s.cli.Delete(ctx, s.collection, "", expr); err != nil {
 		return fmt.Errorf("删除文档向量失败: %w", err)
 	}
+	if err := s.cli.Flush(ctx, s.collection, false); err != nil {
+		return fmt.Errorf("flush 删除操作失败: %w", err)
+	}
+	return nil
+}
+
+// DeleteByCollection 删除某知识库的所有 chunk（用于删除知识库）。
+func (s *Store) DeleteByCollection(ctx context.Context, collectionID int64) error {
+	expr := fmt.Sprintf("%s == %d", fieldCollectionID, collectionID)
+	if err := s.cli.Delete(ctx, s.collection, "", expr); err != nil {
+		return fmt.Errorf("删除知识库向量失败: %w", err)
+	}
+	if err := s.cli.Flush(ctx, s.collection, false); err != nil {
+		return fmt.Errorf("flush 删除操作失败: %w", err)
+	}
 	return nil
 }
 
