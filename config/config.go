@@ -11,12 +11,13 @@ var (
 	AppModel string
 	HttpPort string
 
-	DB         string
-	DbHost     string
-	DbPort     string
-	DbUser     string
-	DbPassword string
-	DbName     string
+	DB          string
+	DatabaseURL string
+	DbHost      string
+	DbPort      string
+	DbUser      string
+	DbPassword  string
+	DbName      string
 
 	JwtSecret      string
 	JwtExpireHours int
@@ -51,6 +52,7 @@ func LoadServer(file *ini.File) {
 func LoadPostgreSQL(file *ini.File) {
 	section := file.Section("postgresql")
 	DB = envOrConfig("DB_DRIVER", section.Key("DB").String())
+	DatabaseURL = os.Getenv("DATABASE_URL")
 	DbHost = envOrConfig("DB_HOST", section.Key("DbHost").String())
 	DbPort = envOrConfig("DB_PORT", section.Key("DbPort").String())
 	DbUser = envOrConfig("DB_USER", section.Key("DbUser").String())

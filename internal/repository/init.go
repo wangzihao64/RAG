@@ -17,8 +17,11 @@ import (
 var DB *gorm.DB
 
 func InitPostgreSQL() {
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=Asia/Shanghai",
-		config.DbHost, config.DbPort, config.DbUser, config.DbPassword, config.DbName)
+	dsn := config.DatabaseURL
+	if dsn == "" {
+		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=Asia/Shanghai",
+			config.DbHost, config.DbPort, config.DbUser, config.DbPassword, config.DbName)
+	}
 
 	var logLevel logger.LogLevel
 	if config.AppModel == "debug" {
