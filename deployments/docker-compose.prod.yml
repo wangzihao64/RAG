@@ -1,0 +1,106 @@
+services:
+  rag:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: rag:latest
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      APP_MODEL: release
+      HTTP_PORT: :8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      DB_NAME: ${POSTGRES_DB:-rag}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      UPLOAD_DIR: /app/uploads
+      MILVUS_ADDRESS: milvus:19530
+      MILVUS_COLLECTION: ${MILVUS_COLLECTION:-rag_chunks}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:?set DASHSCOPE_API_KEY in .env}
+    volumes:
+      - rag_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-rag}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.16
+    restart: unless-stopped
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: 1000
+      ETCD_QUOTA_BACKEND_BYTES: 4294967296
+      ETCD_SNAPSHOT_COUNT: 50000
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls=http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 5
+
+  milvus:
+    image: milvusdb/milvus:v2.5.4
+    restart: unless-stopped
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    command: ["milvus", "run", "standalone"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 5
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+volumes:
+  rag_uploads:
+  postgres_data:
+  etcd_data:
+  minio_data:
+  milvus_data:

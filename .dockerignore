@@ -1,0 +1,13 @@
+.git
+.gitignore
+.idea
+.agents
+.codex
+CLAUDE.md
+AGENTS.md
+README.md
+Dockerfile
+deployments/volumes
+uploads
+main
+*.log

@@ -15,3 +15,6 @@ deployments/volumes/
 
 # postgresql 数据卷
 deployments/deployments
+
+# 生产环境私密配置
+deployments/.env.production
