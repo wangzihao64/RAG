@@ -42,6 +42,12 @@ var (
 	LLMModel    string
 	LLMAPIKey   string // 复用环境变量 DASHSCOPE_API_KEY
 	QueryTopK   int
+
+	RerankEnabled       bool
+	RerankBaseURL       string
+	RerankModel         string
+	RerankAPIKey        string
+	RerankCandidateSize int
 )
 
 func LoadServer(file *ini.File) {
@@ -99,6 +105,27 @@ func LoadLLM(file *ini.File) {
 	// 与 embedding 共用同一个 DashScope key
 	LLMAPIKey = os.Getenv("DASHSCOPE_API_KEY")
 }
+
+func LoadReranker(file *ini.File) {
+	section := file.Section("reranker")
+	RerankEnabled = section.Key("Enabled").MustBool(false)
+	RerankBaseURL = envOrConfig(
+		"RERANK_BASE_URL",
+		section.Key("BaseURL").MustString(
+			"https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank",
+		),
+	)
+	RerankModel = envOrConfig(
+		"RERANK_MODEL",
+		section.Key("Model").MustString("gte-rerank-v2"),
+	)
+	RerankAPIKey = os.Getenv("DASHSCOPE_API_KEY")
+	RerankCandidateSize = section.Key("CandidateSize").MustInt(4)
+	if RerankCandidateSize < 1 {
+		RerankCandidateSize = 1
+	}
+}
+
 func Init() {
 	file, err := ini.Load("./config/config.ini")
 	if err != nil {
@@ -111,6 +138,7 @@ func Init() {
 	LoadMilvus(file)
 	LoadEmbedding(file)
 	LoadLLM(file)
+	LoadReranker(file)
 }
 
 func envOrConfig(name, fallback string) string {

@@ -11,6 +11,7 @@ import (
 	"rag/internal/repository"
 	"rag/pkg/embedding"
 	"rag/pkg/llm"
+	"rag/pkg/reranker"
 	"rag/pkg/vectordb"
 )
 
@@ -21,9 +22,10 @@ var ErrQueryUnavailable = errors.New("在线查询服务不可用：向量库未
 // 在线查询所需资源的包级单例。与 worker 的 Pipeline 各持一份 Milvus 连接，
 // 刻意解耦：避免把 worker 内部资源暴露成共享单例。由 InitQuery 在启动时初始化。
 var (
-	queryStore *vectordb.Store
-	queryEmbed embedding.Client
-	queryLLM   llm.Client
+	queryStore    *vectordb.Store
+	queryEmbed    embedding.Client
+	queryLLM      llm.Client
+	queryReranker reranker.Client
 )
 
 // RetrievedChunk 是一次检索命中的片段，附带其所属文档信息，用于展示引用来源。
@@ -45,6 +47,7 @@ func InitQuery(ctx context.Context) error {
 	queryStore = store
 	queryEmbed = embedding.New()
 	queryLLM = llm.New()
+	queryReranker = reranker.New()
 	return nil
 }
 
@@ -82,12 +85,58 @@ func Retrieve(ctx context.Context, collectionID, userID uint, query string, topK
 		return nil, fmt.Errorf("查询向量化返回为空")
 	}
 
-	hits, err := queryStore.Search(ctx, int64(collectionID), vectors[0], topK)
+	candidateTopK := topK
+	if queryReranker != nil {
+		candidateTopK = topK * config.RerankCandidateSize
+		if candidateTopK < topK {
+			candidateTopK = topK
+		}
+	}
+
+	hits, err := queryStore.Search(ctx, int64(collectionID), vectors[0], candidateTopK)
 	if err != nil {
 		return nil, err
 	}
 
+	if queryReranker != nil && len(hits) > 1 {
+		hits = rerankHits(ctx, query, hits, topK)
+	}
+
 	return enrichWithDocNames(ctx, hits), nil
+}
+
+func rerankHits(
+	ctx context.Context,
+	query string,
+	hits []vectordb.SearchHit,
+	topK int,
+) []vectordb.SearchHit {
+	documents := make([]string, len(hits))
+	for i, hit := range hits {
+		documents[i] = hit.Content
+	}
+
+	results, err := queryReranker.Rerank(ctx, query, documents, topK)
+	if err != nil || len(results) == 0 {
+		if len(hits) > topK {
+			return hits[:topK]
+		}
+		return hits
+	}
+
+	reranked := make([]vectordb.SearchHit, 0, len(results))
+	for _, result := range results {
+		if result.Index < 0 || result.Index >= len(hits) {
+			continue
+		}
+		hit := hits[result.Index]
+		hit.Score = result.Score
+		reranked = append(reranked, hit)
+	}
+	if len(reranked) == 0 {
+		return hits
+	}
+	return reranked
 }
 
 // enrichWithDocNames 批量补充命中片段的文档名，按 document_id 去重查询，避免 N+1。
