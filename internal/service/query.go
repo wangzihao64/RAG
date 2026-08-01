@@ -199,3 +199,31 @@ func BuildRAGMessages(query string, chunks []RetrievedChunk) []llm.Message {
 		{Role: llm.RoleUser, Content: query},
 	}
 }
+
+// ShouldShowSources hides retrieved sources when the model declines to answer.
+func ShouldShowSources(answer string) bool {
+	answer = strings.TrimSpace(answer)
+	if answer == "" {
+		return false
+	}
+
+	markers := []string{
+		"根据现有资料无法回答",
+		"根据提供的资料无法回答",
+		"资料中没有相关信息",
+		"没有相关信息",
+		"无法确定",
+		"无法回答",
+		"无法得知",
+		"insufficient information",
+		"cannot answer",
+		"unable to answer",
+	}
+	lower := strings.ToLower(answer)
+	for _, marker := range markers {
+		if strings.Contains(answer, marker) || strings.Contains(lower, marker) {
+			return false
+		}
+	}
+	return true
+}

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -62,10 +63,14 @@ func ChatEval(c *gin.Context) {
 	resp, err := service.Answer(c.Request.Context(), messages)
 	if err != nil {
 		response.Fail(c, http.StatusBadRequest, 400, "参数错误："+err.Error())
+		return
 	}
-	contexts := make([]string, len(chunks))
-	for i, chunk := range chunks {
-		contexts[i] = chunk.Content
+	var contexts []string
+	if service.ShouldShowSources(resp) {
+		contexts = make([]string, len(chunks))
+		for i, chunk := range chunks {
+			contexts[i] = chunk.Content
+		}
 	}
 	response.Success(c, resp, contexts)
 }
@@ -111,11 +116,11 @@ func Chat(c *gin.Context) {
 		flusher.Flush()
 	}
 
-	sendEvent("sources", chunks)
-
-	// 基于同一批来源做流式生成
+	// 增量消息立即下发，完整答案仅用于生成结束后的来源判断。
 	messages := service.BuildRAGMessages(req.Query, chunks)
+	var answer strings.Builder
 	if err := service.StreamAnswer(c.Request.Context(), messages, func(delta string) error {
+		answer.WriteString(delta)
 		sendEvent("message", delta)
 		return nil
 	}); err != nil {
@@ -123,5 +128,8 @@ func Chat(c *gin.Context) {
 		return
 	}
 
+	if service.ShouldShowSources(answer.String()) {
+		sendEvent("sources", chunks)
+	}
 	sendEvent("done", "")
 }
