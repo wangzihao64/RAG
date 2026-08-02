@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"time"
 
 	"rag/config"
@@ -53,7 +54,17 @@ func main() {
 	}
 
 	r := router.NewRouter()
-	if err := r.Run(config.HttpPort); err != nil {
+	server := &http.Server{
+		Addr:              config.HttpPort,
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       2 * time.Minute,
+		WriteTimeout:      5 * time.Minute,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("启动 HTTP 服务失败: %v", err)
 	}
 }
