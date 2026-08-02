@@ -4,8 +4,10 @@ package worker
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
+	"rag/config"
 	"rag/internal/model"
 	"rag/internal/repository"
 	"rag/internal/service"
@@ -16,6 +18,7 @@ type ProcessorWorker struct {
 	pipeline *service.Pipeline
 	interval time.Duration
 	stopCh   chan struct{}
+	wg       sync.WaitGroup
 }
 
 // NewProcessorWorker 构造一个文档处理 worker。
@@ -36,13 +39,18 @@ func NewProcessorWorker(ctx context.Context, pollInterval time.Duration) (*Proce
 
 // Start 启动后台轮询协程。
 func (w *ProcessorWorker) Start() {
-	go w.run()
+	w.wg.Add(1)
+	go func() {
+		defer w.wg.Done()
+		w.run()
+	}()
 	log.Printf("文档处理 worker 已启动，轮询间隔 %v", w.interval)
 }
 
 // Stop 优雅停止 worker。
 func (w *ProcessorWorker) Stop() {
 	close(w.stopCh)
+	w.wg.Wait()
 	if w.pipeline != nil {
 		_ = w.pipeline.Close()
 	}
@@ -82,11 +90,35 @@ func (w *ProcessorWorker) pollAndProcess() {
 	}
 
 	log.Printf("发现 %d 个待处理文档", len(docs))
-	for _, doc := range docs {
-		if err := w.pipeline.ProcessDocument(ctx, doc.ID); err != nil {
-			log.Printf("处理文档 %d 失败: %v", doc.ID, err)
-		} else {
-			log.Printf("文档 %d 处理完成", doc.ID)
-		}
+
+	workerCount := config.WorkerCount
+	if workerCount < 1 {
+		workerCount = 1
 	}
+	if workerCount > len(docs) {
+		workerCount = len(docs)
+	}
+
+	jobs := make(chan model.Document)
+	var jobsWg sync.WaitGroup
+	jobsWg.Add(workerCount)
+
+	for i := 0; i < workerCount; i++ {
+		go func(workerID int) {
+			defer jobsWg.Done()
+			for doc := range jobs {
+				if err := w.pipeline.ProcessDocument(ctx, doc.ID); err != nil {
+					log.Printf("worker-%d 处理文档 %d 失败: %v", workerID, doc.ID, err)
+				} else {
+					log.Printf("worker-%d 处理文档 %d 完成", workerID, doc.ID)
+				}
+			}
+		}(i + 1)
+	}
+
+	for _, doc := range docs {
+		jobs <- doc
+	}
+	close(jobs)
+	jobsWg.Wait()
 }

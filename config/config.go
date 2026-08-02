@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	AppModel string
-	HttpPort string
+	AppModel    string
+	HttpPort    string
+	WorkerCount int
 
 	DB          string
 	DatabaseURL string
@@ -54,6 +55,10 @@ func LoadServer(file *ini.File) {
 	section := file.Section("service")
 	AppModel = envOrConfig("APP_MODEL", section.Key("AppModel").String())
 	HttpPort = envOrConfig("HTTP_PORT", section.Key("HttpPort").String())
+	WorkerCount = section.Key("WorkerCount").MustInt(3)
+	if WorkerCount < 1 {
+		WorkerCount = 1
+	}
 }
 func LoadPostgreSQL(file *ini.File) {
 	section := file.Section("postgresql")
