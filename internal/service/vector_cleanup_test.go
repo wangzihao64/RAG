@@ -7,15 +7,9 @@ import (
 )
 
 type fakeDocumentVectorStore struct {
-	closed             bool
 	deleteCollectionID int64
 	deleteDocumentID   int64
 	deleteErr          error
-}
-
-func (s *fakeDocumentVectorStore) Close() error {
-	s.closed = true
-	return nil
 }
 
 func (s *fakeDocumentVectorStore) DeleteByDocument(_ context.Context, documentID int64) error {
@@ -28,13 +22,17 @@ func (s *fakeDocumentVectorStore) DeleteByCollection(_ context.Context, collecti
 	return s.deleteErr
 }
 
-func TestDeleteDocumentChunks_DeletesChunksAndClosesStore(t *testing.T) {
+// stubCleanupStore 用 fake 替换共享连接，测试结束后还原。
+func stubCleanupStore(t *testing.T, store documentVectorStore) {
+	t.Helper()
+	original := sharedCleanupStore
+	sharedCleanupStore = func() documentVectorStore { return store }
+	t.Cleanup(func() { sharedCleanupStore = original })
+}
+
+func TestDeleteDocumentChunks_DeletesChunksWithSharedStore(t *testing.T) {
 	store := &fakeDocumentVectorStore{}
-	originalFactory := newDocumentVectorStore
-	newDocumentVectorStore = func(context.Context) (documentVectorStore, error) {
-		return store, nil
-	}
-	t.Cleanup(func() { newDocumentVectorStore = originalFactory })
+	stubCleanupStore(t, store)
 
 	if err := deleteDocumentChunks(context.Background(), 42); err != nil {
 		t.Fatalf("deleteDocumentChunks() error = %v", err)
@@ -42,36 +40,30 @@ func TestDeleteDocumentChunks_DeletesChunksAndClosesStore(t *testing.T) {
 	if store.deleteDocumentID != 42 {
 		t.Errorf("DeleteByDocument() documentID = %d, want 42", store.deleteDocumentID)
 	}
-	if !store.closed {
-		t.Error("Close() was not called")
-	}
 }
 
 func TestDeleteDocumentChunks_ReturnsDeleteError(t *testing.T) {
 	deleteErr := errors.New("milvus unavailable")
-	store := &fakeDocumentVectorStore{deleteErr: deleteErr}
-	originalFactory := newDocumentVectorStore
-	newDocumentVectorStore = func(context.Context) (documentVectorStore, error) {
-		return store, nil
-	}
-	t.Cleanup(func() { newDocumentVectorStore = originalFactory })
+	stubCleanupStore(t, &fakeDocumentVectorStore{deleteErr: deleteErr})
 
 	err := deleteDocumentChunks(context.Background(), 42)
 	if !errors.Is(err, deleteErr) {
 		t.Fatalf("deleteDocumentChunks() error = %v, want wrapped %v", err, deleteErr)
 	}
-	if !store.closed {
-		t.Error("Close() was not called")
+}
+
+func TestDeleteDocumentChunks_StoreUnavailable(t *testing.T) {
+	stubCleanupStore(t, nil)
+
+	err := deleteDocumentChunks(context.Background(), 42)
+	if !errors.Is(err, ErrQueryUnavailable) {
+		t.Fatalf("deleteDocumentChunks() error = %v, want %v", err, ErrQueryUnavailable)
 	}
 }
 
-func TestDeleteCollectionChunks_DeletesChunksAndClosesStore(t *testing.T) {
+func TestDeleteCollectionChunks_DeletesChunksWithSharedStore(t *testing.T) {
 	store := &fakeDocumentVectorStore{}
-	originalFactory := newDocumentVectorStore
-	newDocumentVectorStore = func(context.Context) (documentVectorStore, error) {
-		return store, nil
-	}
-	t.Cleanup(func() { newDocumentVectorStore = originalFactory })
+	stubCleanupStore(t, store)
 
 	if err := deleteCollectionChunks(context.Background(), 7); err != nil {
 		t.Fatalf("deleteCollectionChunks() error = %v", err)
@@ -79,7 +71,13 @@ func TestDeleteCollectionChunks_DeletesChunksAndClosesStore(t *testing.T) {
 	if store.deleteCollectionID != 7 {
 		t.Errorf("DeleteByCollection() collectionID = %d, want 7", store.deleteCollectionID)
 	}
-	if !store.closed {
-		t.Error("Close() was not called")
+}
+
+func TestDeleteCollectionChunks_StoreUnavailable(t *testing.T) {
+	stubCleanupStore(t, nil)
+
+	err := deleteCollectionChunks(context.Background(), 7)
+	if !errors.Is(err, ErrQueryUnavailable) {
+		t.Fatalf("deleteCollectionChunks() error = %v, want %v", err, ErrQueryUnavailable)
 	}
 }

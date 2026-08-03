@@ -50,6 +50,8 @@ func collectionErrorResponse(c *gin.Context, err error) {
 		response.Fail(c, http.StatusNotFound, 404, err.Error())
 	case errors.Is(err, service.ErrCollectionForbidden):
 		response.Fail(c, http.StatusForbidden, 403, err.Error())
+	case errors.Is(err, service.ErrQueryUnavailable):
+		response.Fail(c, http.StatusServiceUnavailable, 503, err.Error())
 	default:
 		response.Fail(c, http.StatusInternalServerError, 500, "服务器内部错误")
 	}

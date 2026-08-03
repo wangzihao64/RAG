@@ -57,9 +57,13 @@ func QueryAvailable() bool {
 }
 
 // CloseQuery 释放在线查询占用的资源。
+// 关闭后置空 queryStore：共享它的删除路径会转而返回 503，
+// 而不是在已关闭的连接上操作；重复调用也变为安全的空操作。
 func CloseQuery() error {
 	if queryStore != nil {
-		return queryStore.Close()
+		err := queryStore.Close()
+		queryStore = nil
+		return err
 	}
 	return nil
 }
