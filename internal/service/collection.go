@@ -109,7 +109,7 @@ func (service *UpdateCollectionRequest) Update(ctx context.Context, id, userID u
 // DeleteCollection 删除知识库：仅 owner 可删
 func DeleteCollection(ctx context.Context, id, userID uint) error {
 	dao := repository.NewCollectionDao(ctx)
-
+	docDao := repository.NewDocumentDao(ctx)
 	c, err := dao.FindByID(id)
 	if err != nil {
 		return err
@@ -122,6 +122,15 @@ func DeleteCollection(ctx context.Context, id, userID uint) error {
 	}
 	if err := deleteCollectionChunks(ctx, c.ID); err != nil {
 		return err
+	}
+	docs, err := docDao.ListByCollection(id)
+	if err != nil {
+		return err
+	}
+	for _, doc := range docs {
+		if err := docDao.DeleteDocument(&doc); err != nil {
+			return err
+		}
 	}
 	return dao.DeleteCollection(c)
 }
