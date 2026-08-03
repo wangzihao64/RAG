@@ -158,6 +158,10 @@ func GetContent(ctx context.Context, id, userID uint) (*model.Document, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 借用 collection 的可见性规则做鉴权
+	if _, err := GetCollection(ctx, doc.CollectionID, userID); err != nil {
+		return nil, err
+	}
 	return doc, nil
 }
 
