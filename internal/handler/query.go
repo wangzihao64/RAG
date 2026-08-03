@@ -46,7 +46,7 @@ func ChatEval(c *gin.Context) {
 	}
 	var req chatRequest
 	if err := c.ShouldBind(&req); err != nil {
-		response.Fail(c, http.StatusInternalServerError, 500, "AI 回答生成失败："+err.Error())
+		response.Fail(c, http.StatusBadRequest, 400, "参数错误："+err.Error())
 		return
 	}
 
@@ -62,7 +62,7 @@ func ChatEval(c *gin.Context) {
 	messages := service.BuildRAGMessages(req.Query, chunks)
 	resp, err := service.Answer(c.Request.Context(), messages)
 	if err != nil {
-		response.Fail(c, http.StatusBadRequest, 400, "参数错误："+err.Error())
+		response.Fail(c, http.StatusInternalServerError, 500, "AI 回答生成失败："+err.Error())
 		return
 	}
 	var contexts []string
