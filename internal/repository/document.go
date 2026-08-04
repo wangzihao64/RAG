@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"rag/internal/model"
 )
@@ -68,6 +69,45 @@ func (d *DocumentDao) DeleteDocument(doc *model.Document) error {
 func (d *DocumentDao) ListPendingDocuments() ([]model.Document, error) {
 	var docs []model.Document
 	err := d.Where("status = ?", model.DocStatusPending).Find(&docs).Error
+	if err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
+// ClaimPendingDocuments 原子领取最多 limit 条待处理文档。
+// 行锁在事务提交前将领取到的记录更新为 processing，因此多个 worker
+// 或多个服务实例并发轮询时，同一文档只会被其中一个领取。
+func (d *DocumentDao) ClaimPendingDocuments(limit int) ([]model.Document, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+
+	var docs []model.Document
+	err := d.Transaction(func(tx *gorm.DB) error {
+		if err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+			Where("status = ?", model.DocStatusPending).
+			Order("id ASC").
+			Limit(limit).
+			Find(&docs).Error; err != nil {
+			return err
+		}
+		if len(docs) == 0 {
+			return nil
+		}
+
+		ids := make([]uint, len(docs))
+		for i, doc := range docs {
+			ids[i] = doc.ID
+		}
+		return tx.Model(&model.Document{}).
+			Where("id IN ? AND status = ?", ids, model.DocStatusPending).
+			Updates(map[string]any{
+				"status":    model.DocStatusProcessing,
+				"error_msg": "",
+			}).Error
+	})
 	if err != nil {
 		return nil, err
 	}

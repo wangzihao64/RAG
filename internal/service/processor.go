@@ -53,11 +53,6 @@ func (p *Pipeline) ProcessDocument(ctx context.Context, docID uint) error {
 		return fmt.Errorf("文档 %d 不存在", docID)
 	}
 
-	// 标记为处理中
-	if err := dao.UpdateStatus(docID, model.DocStatusProcessing, ""); err != nil {
-		return err
-	}
-
 	// 执行处理流水线
 	if err := p.process(ctx, doc); err != nil {
 		log.Printf("文档 %d 处理失败: %v", docID, err)

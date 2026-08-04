@@ -75,50 +75,48 @@ func (w *ProcessorWorker) run() {
 	}
 }
 
-// pollAndProcess 查询所有待处理文档并逐个处理。
+// pollAndProcess 原子领取待处理文档并逐批处理。
 func (w *ProcessorWorker) pollAndProcess() {
 	ctx := context.Background()
 	dao := repository.NewDocumentDao(ctx)
-	// 查询所有 pending 状态的文档
-	var docs []model.Document
-	docs, err := dao.ListPendingDocuments()
-	if err != nil {
-		log.Printf("查询待处理文档失败: %v", err)
-	}
-	if len(docs) == 0 {
-		return
-	}
-
-	log.Printf("发现 %d 个待处理文档", len(docs))
 
 	workerCount := config.WorkerCount
 	if workerCount < 1 {
 		workerCount = 1
 	}
-	if workerCount > len(docs) {
-		workerCount = len(docs)
-	}
 
-	jobs := make(chan model.Document)
-	var jobsWg sync.WaitGroup
-	jobsWg.Add(workerCount)
+	for {
+		docs, err := dao.ClaimPendingDocuments(workerCount)
+		if err != nil {
+			log.Printf("领取待处理文档失败: %v", err)
+			return
+		}
+		if len(docs) == 0 {
+			return
+		}
 
-	for i := 0; i < workerCount; i++ {
-		go func(workerID int) {
-			defer jobsWg.Done()
-			for doc := range jobs {
-				if err := w.pipeline.ProcessDocument(ctx, doc.ID); err != nil {
-					log.Printf("worker-%d 处理文档 %d 失败: %v", workerID, doc.ID, err)
-				} else {
-					log.Printf("worker-%d 处理文档 %d 完成", workerID, doc.ID)
+		log.Printf("领取到 %d 个待处理文档", len(docs))
+		jobs := make(chan model.Document)
+		var jobsWg sync.WaitGroup
+		jobsWg.Add(len(docs))
+
+		for i := 0; i < len(docs); i++ {
+			go func(workerID int) {
+				defer jobsWg.Done()
+				for doc := range jobs {
+					if err := w.pipeline.ProcessDocument(ctx, doc.ID); err != nil {
+						log.Printf("worker-%d 处理文档 %d 失败: %v", workerID, doc.ID, err)
+					} else {
+						log.Printf("worker-%d 处理文档 %d 完成", workerID, doc.ID)
+					}
 				}
-			}
-		}(i + 1)
-	}
+			}(i + 1)
+		}
 
-	for _, doc := range docs {
-		jobs <- doc
+		for _, doc := range docs {
+			jobs <- doc
+		}
+		close(jobs)
+		jobsWg.Wait()
 	}
-	close(jobs)
-	jobsWg.Wait()
 }
